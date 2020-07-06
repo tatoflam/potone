@@ -13,3 +13,6 @@ PICTURE_DIR = "./picture/"
 SERIAL_STOP = "stop"
 SERIAL_PORT = 115200
 LIST_USB_COMMAND="ls -1 /dev/ttyUSB*"
+
+JSON_INITIAL_DICT = {'vol':1, 'mrt':1, 'efd':1, 'eft':1, 'sus':1, 'bpm':30,
+                  'img':0, 'pup':0, 'pdn':0, 'drm':0}

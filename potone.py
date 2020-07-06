@@ -12,7 +12,7 @@ import json
 
 from constants import KEY_ESC, KEY_SAVE, KEY_RECEIVER_STOP, WINDOW_ORG, WINDOW_DIFF, \
      WINDOW_INVERTDIFF, WINDOW_MOSAIC, WINDOW_MOSAIC_INVERTDIFF, PICTURE_DIR, SERIAL_PORT, \
-     SERIAL_STOP, LIST_USB_COMMAND
+     SERIAL_STOP, LIST_USB_COMMAND, JSON_INITIAL_DICT
 from image_processor import invert_color, mosaic
 
 serial_q = queue.Queue()
@@ -22,8 +22,7 @@ def video_stream():
     item = None
     byte_item = None
     prev_json_item = None
-    json_item =  {'vol':1, 'mrt':1, 'efd':1, 'eft':1, 'sus':1, 'bpm':30,
-                  'img':0, 'pup':0, 'pdn':0, 'drm':0}
+    json_item =  JSON_INITIAL_DICT
     ratio = 0.05
     COLOR = 1
     GRAY = 0

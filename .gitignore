@@ -1,3 +1,3 @@
-./picture/*
-./__pychache__/*
+picture/*
+__pycache__/*
 
