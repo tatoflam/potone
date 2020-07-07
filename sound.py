@@ -43,11 +43,11 @@ def check_midi_port(synth_name_key):
             midi_synth_outport = mido.open_output(midi_synth_port_name)
     prev_time = now
 
-def tum(note=60, velocity=50):
+def tum(channel=0, note=60, velocity=50):
     check_midi_port(MIDI_SYNTH_PORT_KEY)
     
-    msg = Message('note_on', note=note, velocity=velocity, time=960)
+    msg = Message('note_on', channel=channel, note=note, velocity=velocity, time=960)
     midi_synth_outport.send(msg)
-    msg = Message('note_off', note=note, velocity=0)
+    msg = Message('note_off', channel=channel, note=note, velocity=0)
     midi_synth_outport.send(msg)
     

@@ -104,26 +104,30 @@ def video_stream():
             
                 print("video_stream(): json_item: %s" % json_item)
                                   
-                velocity = int(json_item['vol'])
-                ratio = 1 / (int(json_item['mrt']))
-                interval = int(json_item['bpm'])
-                effect_depth = int(json_item['efd'])
-                effect_time = int(json_item['eft'])
-                sustain = int(json_item['sus'])
                 bpm = int(json_item['bpm'])
+                ratio = 1 / (int(json_item['mrt']))
+                vl2 = int(json_item['vl2'])
+                nt2 = int(json_item['nt2'])
+                vl1 = int(json_item['vl1'])
+                nt1 = int(json_item['nt1'])
                 
-                img = int(json_item['img'])
-                prg_up = int(json_item['pup'])
-                prg_down = int(json_item['pdn'])
-                drum = int(json_item['drm'])
-                
-                if (color == GRAY):
+                up1 = int(json_item['up1'])
+                dr1 = int(json_item['dr1'])
+                up2 = int(json_item['up2'])
+                dr2 = int(json_item['dr2'])
+                ch1 = int(json_item['ch1'])
+                ch2 = int(json_item['ch2'])
+ #               if (color == GRAY):
                     # Convert to gray scale
-                    iFrame = cv.cvtColor(iFrame, cv.COLOR_BGR2GRAY)
+ #                   iFrame = cv.cvtColor(iFrame, cv.COLOR_BGR2GRAY)
                 
-            if (drum == 0):
-                tum(note=effect_depth, velocity=velocity)
-            
+            if (dr1 == 0):
+                tum(channel=ch1, note=nt1, velocity=vl1)
+
+            if (dr2 == 0):
+                tum(channel=ch2, note=nt2, velocity=vl2)
+
+
             nowTime = time.time()
             if (int(nowTime - startTime)) > 60/bpm:
                 
