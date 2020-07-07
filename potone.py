@@ -12,11 +12,13 @@ import json
 
 from constants import KEY_ESC, KEY_SAVE, KEY_RECEIVER_STOP, WINDOW_ORG, WINDOW_DIFF, \
      WINDOW_INVERTDIFF, WINDOW_MOSAIC, WINDOW_MOSAIC_INVERTDIFF, PICTURE_DIR, SERIAL_PORT, \
-     SERIAL_STOP, LIST_USB_COMMAND, JSON_INITIAL_DICT
-from image_processor import invert_color, mosaic
+     SERIAL_STOP, LIST_USB_COMMAND, JSON_INITIAL_DICT, MIDI_SYNTH_PORT_KEY
+from image import invert_color, mosaic
+from sound import check_midi_port, tum
 
 serial_q = queue.Queue()
 quit_recv = False
+midi_synth_port = None
 
 def video_stream():
     item = None
@@ -28,6 +30,7 @@ def video_stream():
     GRAY = 0
     color = COLOR
     interval = 10
+    global midi_synth_port
     
     cv2.namedWindow(WINDOW_ORG, cv2.WINDOW_NORMAL) 
     cv2.namedWindow(WINDOW_DIFF, cv2.WINDOW_NORMAL) 
@@ -59,9 +62,13 @@ def video_stream():
         iFrame = cv2.flip(iFrame, 0)
 
         # read background frame
-        bFrame = np.zeros_like(iFrame, np.float32) 
+        bFrame = np.zeros_like(iFrame, np.float32)
+        
+        fpsLimit = 1
+        startTime = time.time()
         
         while True:
+            
             # Get message from AVR input board
             while not serial_q.empty():
                 byte_item = serial_q.get()
@@ -96,92 +103,106 @@ def video_stream():
                     prev_json_item = json_item
             
                 print("video_stream(): json_item: %s" % json_item)
-                  
-                
+                                  
+                velocity = int(json_item['vol'])
                 ratio = 1 / (int(json_item['mrt']))
-                color = json_item['img']
-                # print("color %i\n" % color)
                 interval = int(json_item['bpm'])
+                effect_depth = int(json_item['efd'])
+                effect_time = int(json_item['eft'])
+                sustain = int(json_item['sus'])
+                bpm = int(json_item['bpm'])
+                
+                img = int(json_item['img'])
+                prg_up = int(json_item['pup'])
+                prg_down = int(json_item['pdn'])
+                drum = int(json_item['drm'])
                 
                 if (color == GRAY):
                     # Convert to gray scale
                     iFrame = cv.cvtColor(iFrame, cv.COLOR_BGR2GRAY)
-                    
-            # convert image to float 
-            fFrame = iFrame.astype(np.float32) 
-
-            #diff 
-            dFrame = cv2.absdiff(fFrame, bFrame) 
-
-            # convert to gray scale
-            gray = cv2.cvtColor(dFrame.astype(np.uint8), cv2.COLOR_RGB2GRAY) 
-
-            # derive outline
-            cannyFrame = cv2.Canny(gray, 50, 110) 
-
-            ret, thresh = cv2.threshold(gray, 127, 255, 0) 
-            contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL,
-                                                     cv2.CHAIN_APPROX_SIMPLE) 
-
-            i = 0 
-            sv = 0 
-            ix = 0 
-
-            for cnt in contours: 
-                area = cv2.contourArea(cnt) 
-                if  area > sv: 
-                    sv = area 
-                    ix = i 
-                i = i + 1 
-
-            cx = 0 
-            cy = 0 
-
-            if ix > 0 and sv > 10 : 
-                M = cv2.moments(contours[ix]) 
-                if M['m00'] != 0 : 
-                    cx = int(M['m10']/M['m00']) 
-                    cy = int(M['m01']/M['m00']) 
-                    # print('x:' + str(cx) + ' y:' + str(cy) + ' area:' + str(sv))
-
-            # update background 
-            cv2.accumulateWeighted(fFrame, bFrame, 0.025) 
-
-            # invert color
-            idFrame = invert_color(dFrame)
-
-            # convert to mosaic
-            mFrame = mosaic(iFrame, ratio)
-            midFrame = mosaic(idFrame, ratio)
-
-            # display frame
-            cv2.imshow(WINDOW_ORG, iFrame) 
-            cv2.imshow(WINDOW_DIFF, dFrame.astype(np.uint8)) 
-            cv2.imshow(WINDOW_INVERTDIFF, idFrame.astype(np.uint8)) 
-            cv2.imshow(WINDOW_MOSAIC, mFrame.astype(np.uint8)) 
-            cv2.imshow(WINDOW_MOSAIC_INVERTDIFF, midFrame.astype(np.uint8)) 
-
-
-            # read next frame
-            hasNext, iFrame = sourceVideo.read() 
-            iFrame = cv2.resize(iFrame, (width//2, height//2))
-            iFrame = cv2.flip(iFrame, 0)
-
-
-            title = WINDOW_MOSAIC
-
-            k = cv2.waitKey(1)
-            if k == KEY_ESC: # wait for ESC key to exit
-                break
+                
+            if (drum == 0):
+                tum(note=effect_depth, velocity=velocity)
             
-            elif k == ord(KEY_SAVE): # wait for 's' key to save image
-                dt_now = datetime.datetime.now().strftime('%Y%m%d%H%M')
-                image_path = PICTURE_DIR + title + '_' + dt_now + '.jpg'
-                cv2.imwrite(image_path, iFrame)
-                print("Saved image at %s" % image_path)
+            nowTime = time.time()
+            if (int(nowTime - startTime)) > 60/bpm:
                 
-            #time.sleep(interval/1000)
+                # convert image to float 
+                fFrame = iFrame.astype(np.float32) 
+
+                #diff 
+                dFrame = cv2.absdiff(fFrame, bFrame) 
+
+                # convert to gray scale
+                gray = cv2.cvtColor(dFrame.astype(np.uint8), cv2.COLOR_RGB2GRAY) 
+
+                # derive outline
+                cannyFrame = cv2.Canny(gray, 50, 110) 
+
+                ret, thresh = cv2.threshold(gray, 127, 255, 0) 
+                contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL,
+                                                         cv2.CHAIN_APPROX_SIMPLE) 
+
+                i = 0 
+                sv = 0 
+                ix = 0 
+
+                for cnt in contours: 
+                    area = cv2.contourArea(cnt) 
+                    if  area > sv: 
+                        sv = area 
+                        ix = i 
+                    i = i + 1 
+
+                cx = 0 
+                cy = 0 
+
+                if ix > 0 and sv > 10 : 
+                    M = cv2.moments(contours[ix]) 
+                    if M['m00'] != 0 : 
+                        cx = int(M['m10']/M['m00']) 
+                        cy = int(M['m01']/M['m00']) 
+                        # print('x:' + str(cx) + ' y:' + str(cy) + ' area:' + str(sv))
+
+                # update background 
+                cv2.accumulateWeighted(fFrame, bFrame, 0.025) 
+
+                # invert color
+                idFrame = invert_color(dFrame)
+
+                # convert to mosaic
+                mFrame = mosaic(iFrame, ratio)
+                midFrame = mosaic(idFrame, ratio)
+
+                # display frame
+                cv2.imshow(WINDOW_ORG, iFrame) 
+                cv2.imshow(WINDOW_DIFF, dFrame.astype(np.uint8)) 
+                cv2.imshow(WINDOW_INVERTDIFF, idFrame.astype(np.uint8)) 
+                cv2.imshow(WINDOW_MOSAIC, mFrame.astype(np.uint8)) 
+                cv2.imshow(WINDOW_MOSAIC_INVERTDIFF, midFrame.astype(np.uint8)) 
+
+
+                # read next frame
+                hasNext, iFrame = sourceVideo.read() 
+                iFrame = cv2.resize(iFrame, (width//2, height//2))
+                iFrame = cv2.flip(iFrame, 0)
+
+
+                title = WINDOW_MOSAIC
+
+                k = cv2.waitKey(1)
+                if k == KEY_ESC: # wait for ESC key to exit
+                    break
                 
+                elif k == ord(KEY_SAVE): # wait for 's' key to save image
+                    dt_now = datetime.datetime.now().strftime('%Y%m%d%H%M')
+                    image_path = PICTURE_DIR + title + '_' + dt_now + '.jpg'
+                    cv2.imwrite(image_path, iFrame)
+                    print("Saved image at %s" % image_path)
+                    
+
+                startTIme = time.time() # reset time
+            time.sleep(1/30)                
 
     except:
         print("error")
@@ -233,6 +254,7 @@ def init_serial():
 def main():        
     global serial_q
     global quit_recv
+    global midi_synth_port
 
     try:
         s = init_serial()
@@ -244,6 +266,9 @@ def main():
         quit_recv = False
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         receiver = executor.submit(recv_serial, s)
+
+        # Check and open MIDI Synthsizer output port
+        check_midi_port(MIDI_SYNTH_PORT_KEY)
 
         # start video stream
         video_stream()

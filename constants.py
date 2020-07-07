@@ -1,6 +1,7 @@
 KEY_ESC = 27    # Esc key
 KEY_SAVE = 's'  # Save image key
-KEY_RECEIVER_STOP = 'f'  # Stop receiver key
+KEY_RECEIVER_STOP = 'f'
+# Stop receiver key
 INTERVAL= 33     # インターバル 
 
 WINDOW_ORG = "Original" 
@@ -16,3 +17,5 @@ LIST_USB_COMMAND="ls -1 /dev/ttyUSB*"
 
 JSON_INITIAL_DICT = {'vol':1, 'mrt':1, 'efd':1, 'eft':1, 'sus':1, 'bpm':30,
                   'img':0, 'pup':0, 'pdn':0, 'drm':0}
+
+MIDI_SYNTH_PORT_KEY = "FLUID Synth"
