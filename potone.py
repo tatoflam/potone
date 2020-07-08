@@ -12,13 +12,16 @@ import json
 
 from constants import KEY_ESC, KEY_SAVE, KEY_RECEIVER_STOP, WINDOW_ORG, WINDOW_DIFF, \
      WINDOW_INVERTDIFF, WINDOW_MOSAIC, WINDOW_MOSAIC_INVERTDIFF, PICTURE_DIR, SERIAL_PORT, \
-     SERIAL_STOP, LIST_USB_COMMAND, JSON_INITIAL_DICT, MIDI_SYNTH_PORT_KEY
+     SERIAL_STOP, LIST_USB_COMMAND, JSON_INITIAL_DICT, MIDI_SYNTH_PORT_KEY, MIN_FPS
 from image import invert_color, mosaic
-from sound import check_midi_port, tum
+from sound import Sound, send_midi
+from utility import byte_to_json
 
 serial_q = queue.Queue()
 quit_recv = False
+quit_midi = False
 midi_synth_port = None
+sound = Sound()
 
 def video_stream():
     item = None
@@ -30,7 +33,6 @@ def video_stream():
     GRAY = 0
     color = COLOR
     interval = 10
-    global midi_synth_port
     
     cv2.namedWindow(WINDOW_ORG, cv2.WINDOW_NORMAL) 
     cv2.namedWindow(WINDOW_DIFF, cv2.WINDOW_NORMAL) 
@@ -40,6 +42,7 @@ def video_stream():
     
     try:
         global serial_q
+        # global midi_q
 
         sourceVideo = cv2.VideoCapture(0)
         if not sourceVideo.isOpened():
@@ -64,7 +67,6 @@ def video_stream():
         # read background frame
         bFrame = np.zeros_like(iFrame, np.float32)
         
-        fpsLimit = 1
         startTime = time.time()
         
         while True:
@@ -72,141 +74,115 @@ def video_stream():
             # Get message from AVR input board
             while not serial_q.empty():
                 byte_item = serial_q.get()
-                
-            # print("video_stream(): byte_item=%s:" % byte_item)
-            # b'\x00\n' causes JSONDecodeError 
-            if (byte_item != None and byte_item !=  b'\x00\n'):
-                try:
-                    item = byte_item.decode('utf8')
-                    # check stop order from receiver
-                    if (item == SERIAL_STOP):
-                        print("video_stream(): got Stop from queue")
-                        break
+            
+            json_item = byte_to_json(byte_item)
+            if (json_item == None):
+                json_item = prev_json_item
+            
+            # if receiver is working and no object in queue, use previous item
+            else:
+                prev_json_item = json_item
 
-                    json_item = json.loads(item)
             
-                except json.decoder.JSONDecodeError:
-                    print("video_stream(): JSONDecodeError:%s" % byte_item)
-                    print(traceback.format_exc())
-                except EOFError:
-                    print("video_stream(): EOFError:%s" % byte_item)
-                    print(traceback.format_exc())
-                # else:
-                    # print("video_stream(): item=%s" % item)
-            
-
-                if (json_item == None):
-                    json_item = prev_json_item
-                    
-                # if receiver is working and no object in queue, use previous item
-                else:
-                    prev_json_item = json_item
-            
-                print("video_stream(): json_item: %s" % json_item)
+            print("video_stream(): json_item: %s" % json_item)
                                   
-                bpm = int(json_item['bpm'])
-                ratio = 1 / (int(json_item['mrt']))
-                vl2 = int(json_item['vl2'])
-                nt2 = int(json_item['nt2'])
-                vl1 = int(json_item['vl1'])
-                nt1 = int(json_item['nt1'])
-                
-                up1 = int(json_item['up1'])
-                dr1 = int(json_item['dr1'])
-                up2 = int(json_item['up2'])
-                dr2 = int(json_item['dr2'])
-                ch1 = int(json_item['ch1'])
-                ch2 = int(json_item['ch2'])
- #               if (color == GRAY):
-                    # Convert to gray scale
- #                   iFrame = cv.cvtColor(iFrame, cv.COLOR_BGR2GRAY)
-                
-            if (dr1 == 0):
-                tum(channel=ch1, note=nt1, velocity=vl1)
-
-            if (dr2 == 0):
-                tum(channel=ch2, note=nt2, velocity=vl2)
-
+            bpm = int(json_item['bpm']) # purple
+            ratio = 1 / (int(json_item['mrt'])) # white
+            
+            vl2 = int(json_item['vl2']) #blue
+            nt2 = int(json_item['nt2']) #green
+            vl1 = int(json_item['vl1']) #yellow
+            nt1 = int(json_item['nt1']) #red
+            
+            up1 = int(json_item['up1']) #red
+            dr1 = int(json_item['dr1']) #yellow
+            up2 = int(json_item['up2']) #green
+            dr2 = int(json_item['dr2']) #blue
+            ch1 = int(json_item['ch1'])
+            ch2 = int(json_item['ch2']) 
 
             nowTime = time.time()
-            if (int(nowTime - startTime)) > 60/bpm:
+            elapsedTime = nowTime - startTime
+            print(elapsedTime)
+            # wait for each interval
+            
+#            if ((elapsedTime + 1/MIN_FPS) >= 1/(bpm/60)):    
+            # convert image to float 
+            fFrame = iFrame.astype(np.float32) 
+
+            #diff 
+            dFrame = cv2.absdiff(fFrame, bFrame) 
+
+            # convert to gray scale
+            gray = cv2.cvtColor(dFrame.astype(np.uint8), cv2.COLOR_RGB2GRAY) 
+
+            # derive outline
+            cannyFrame = cv2.Canny(gray, 50, 110) 
+
+            ret, thresh = cv2.threshold(gray, 127, 255, 0) 
+            contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL,
+                                                     cv2.CHAIN_APPROX_SIMPLE) 
+
+            i = 0 
+            sv = 0 
+            ix = 0 
+
+            for cnt in contours: 
+                area = cv2.contourArea(cnt) 
+                if  area > sv: 
+                    sv = area 
+                    ix = i 
+                i = i + 1 
+
+            cx = 0 
+            cy = 0 
+
+            if ix > 0 and sv > 10 : 
+                M = cv2.moments(contours[ix]) 
+                if M['m00'] != 0 : 
+                    cx = int(M['m10']/M['m00']) 
+                    cy = int(M['m01']/M['m00']) 
+                    # print('x:' + str(cx) + ' y:' + str(cy) + ' area:' + str(sv))
+
+            # update background 
+            cv2.accumulateWeighted(fFrame, bFrame, 0.025) 
+
+            # invert color
+            idFrame = invert_color(dFrame)
+
+            # convert to mosaic
+            mFrame = mosaic(iFrame, ratio)
+            midFrame = mosaic(idFrame, ratio)
+
+            # display frame
+            cv2.imshow(WINDOW_ORG, iFrame) 
+            # cv2.imshow(WINDOW_DIFF, dFrame.astype(np.uint8))
+            cv2.imshow(WINDOW_DIFF, cannyFrame.astype(np.uint8))
+            cv2.imshow(WINDOW_INVERTDIFF, idFrame.astype(np.uint8)) 
+            cv2.imshow(WINDOW_MOSAIC, mFrame.astype(np.uint8)) 
+            cv2.imshow(WINDOW_MOSAIC_INVERTDIFF, midFrame.astype(np.uint8)) 
+
+
+            # read next frame
+            hasNext, iFrame = sourceVideo.read() 
+            iFrame = cv2.resize(iFrame, (width//2, height//2))
+            iFrame = cv2.flip(iFrame, 0)
+
+
+            title = WINDOW_MOSAIC
+
+            k = cv2.waitKey(1)
+            if k == KEY_ESC: # wait for ESC key to exit
+                break
+            
+            elif k == ord(KEY_SAVE): # wait for 's' key to save image
+                dt_now = datetime.datetime.now().strftime('%Y%m%d%H%M')
+                image_path = PICTURE_DIR + title + '_' + dt_now + '.jpg'
+                cv2.imwrite(image_path, iFrame)
+                print("Saved image at %s" % image_path)
                 
-                # convert image to float 
-                fFrame = iFrame.astype(np.float32) 
-
-                #diff 
-                dFrame = cv2.absdiff(fFrame, bFrame) 
-
-                # convert to gray scale
-                gray = cv2.cvtColor(dFrame.astype(np.uint8), cv2.COLOR_RGB2GRAY) 
-
-                # derive outline
-                cannyFrame = cv2.Canny(gray, 50, 110) 
-
-                ret, thresh = cv2.threshold(gray, 127, 255, 0) 
-                contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL,
-                                                         cv2.CHAIN_APPROX_SIMPLE) 
-
-                i = 0 
-                sv = 0 
-                ix = 0 
-
-                for cnt in contours: 
-                    area = cv2.contourArea(cnt) 
-                    if  area > sv: 
-                        sv = area 
-                        ix = i 
-                    i = i + 1 
-
-                cx = 0 
-                cy = 0 
-
-                if ix > 0 and sv > 10 : 
-                    M = cv2.moments(contours[ix]) 
-                    if M['m00'] != 0 : 
-                        cx = int(M['m10']/M['m00']) 
-                        cy = int(M['m01']/M['m00']) 
-                        # print('x:' + str(cx) + ' y:' + str(cy) + ' area:' + str(sv))
-
-                # update background 
-                cv2.accumulateWeighted(fFrame, bFrame, 0.025) 
-
-                # invert color
-                idFrame = invert_color(dFrame)
-
-                # convert to mosaic
-                mFrame = mosaic(iFrame, ratio)
-                midFrame = mosaic(idFrame, ratio)
-
-                # display frame
-                cv2.imshow(WINDOW_ORG, iFrame) 
-                cv2.imshow(WINDOW_DIFF, dFrame.astype(np.uint8)) 
-                cv2.imshow(WINDOW_INVERTDIFF, idFrame.astype(np.uint8)) 
-                cv2.imshow(WINDOW_MOSAIC, mFrame.astype(np.uint8)) 
-                cv2.imshow(WINDOW_MOSAIC_INVERTDIFF, midFrame.astype(np.uint8)) 
-
-
-                # read next frame
-                hasNext, iFrame = sourceVideo.read() 
-                iFrame = cv2.resize(iFrame, (width//2, height//2))
-                iFrame = cv2.flip(iFrame, 0)
-
-
-                title = WINDOW_MOSAIC
-
-                k = cv2.waitKey(1)
-                if k == KEY_ESC: # wait for ESC key to exit
-                    break
-                
-                elif k == ord(KEY_SAVE): # wait for 's' key to save image
-                    dt_now = datetime.datetime.now().strftime('%Y%m%d%H%M')
-                    image_path = PICTURE_DIR + title + '_' + dt_now + '.jpg'
-                    cv2.imwrite(image_path, iFrame)
-                    print("Saved image at %s" % image_path)
-                    
-
-                startTIme = time.time() # reset time
-            time.sleep(1/30)                
+            # startTime = time.time() # reset time
+            time.sleep(1/MIN_FPS) # wait every minimum fps interval (30fps)
 
     except:
         print("error")
@@ -216,11 +192,11 @@ def video_stream():
         sourceVideo.release()
         cv2.destroyAllWindows()
 
-    
 
 def recv_serial(s):
     global serial_q
     global quit_recv
+    global sound
 
     print("receiver started\n")
     while not quit_recv:
@@ -233,6 +209,7 @@ def recv_serial(s):
         # sys.stdout.write("\rserial received(%s)\n" % data)
         # sys.stdout.flush()
         serial_q.put(data)
+        sound.midi_q.put(data)
         # time.sleep(0.5)
     serial_q.put("pottone.py stopped")
     print("receiver stopped\n")
@@ -259,6 +236,7 @@ def main():
     global serial_q
     global quit_recv
     global midi_synth_port
+    global sound
 
     try:
         s = init_serial()
@@ -268,11 +246,12 @@ def main():
 
         # start serial as a concurrent executor
         quit_recv = False
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
         receiver = executor.submit(recv_serial, s)
+        
+        quit_midi = False
+        midi_sender = executor.submit(send_midi)
 
-        # Check and open MIDI Synthsizer output port
-        check_midi_port(MIDI_SYNTH_PORT_KEY)
 
         # start video stream
         video_stream()
@@ -291,7 +270,7 @@ def main():
                 s.write(str.encode(key))
             except:
                 print(traceback.format_exc())
-                print("\nstop receiver thread\n")
+                print("\nstop receiver and midi sender thread\n")
                 exit(1)
         
     except concurrent.futures.CancelledError:
@@ -305,10 +284,13 @@ def main():
         # serial_q.join()
         
         quit_recv = True
+        sound.quit_midi = True
         # wait until executor(receiver) finishes
         while not receiver.done():
             time.sleep(1)
         s.close
+        while not midi_sender.done():
+            time.sleep(1)
 
         print("main finished")
         exit(0)

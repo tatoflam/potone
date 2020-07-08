@@ -2,7 +2,8 @@ KEY_ESC = 27    # Esc key
 KEY_SAVE = 's'  # Save image key
 KEY_RECEIVER_STOP = 'f'
 # Stop receiver key
-INTERVAL= 33     # インターバル 
+MIN_MIDI_BPM=360  
+MIN_FPS = 30   # minimum interval to process image and sound (30 fps)   
 
 WINDOW_ORG = "Original" 
 WINDOW_DIFF = "Difference" 
