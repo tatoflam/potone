@@ -11,7 +11,7 @@ qsynth_pcount=$(ps -ef | grep -i "qsynth" | grep -v "grep" | wc -l)
 potone_pcount=$(ps -ef | grep -i "potone.py" | grep -v "grep" | wc -l)
 
 if [ $1 = "start" ];then
-
+    cd /home/pi/repo/tatoflam/potone/bin
     if [ "$qjack_pcount" -le 0 ];then
         jack_control start
         sleep 3
@@ -31,6 +31,7 @@ if [ $1 = "start" ];then
     fi
 
 elif [ $1 = "stop" ];then
+    cd /home/pi/repo/tatoflam/potone/bin
     if [ "$qjack_pcount" -eq 1 ];then
 	qjack_pid=$(ps -ef | grep -i "jackdbus" | grep -v "grep" | awk '{print($2)}')
 	echo "jackd process: "$qjack_pid""

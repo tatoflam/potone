@@ -119,8 +119,6 @@ def send_midi(sound):
         else:
             prev_json_item = json_item
 
-            
-        print("sound.send_midi(): json_item: %s" % json_item)
                               
         bpm = int(json_item['bpm']) #purple
         ratio = 1 / (int(json_item['mrt'])) #white
@@ -134,7 +132,12 @@ def send_midi(sound):
         up2 = int(json_item['up2']) #green
         dr2 = int(json_item['dr2']) #blue
         ch1 = int(json_item['ch1']) 
-        ch2 = int(json_item['ch2']) 
+        ch2 = int(json_item['ch2'])
+        img = 0
+        if 'img' in json_item:
+            img = int(json_item['img'])
+            
+        print("sound.send_midi(): json_item: %s" % json_item)
         
         sound.check_midi_port(MIDI_SYNTH_PORT_KEY)
         
@@ -156,6 +159,9 @@ def send_midi(sound):
 
             # time.sleep(1/MIN_FPS) # wait every minimum f
             sound.startTime = time.time() # reset time on hit bpm
+        
+        if (img == 1):
+            sound.tum(channel=ch2, note=nt2, velocity=vl2)
 
         time.sleep(1/(MIN_MIDI_BPM/60)) # wait every minimum bpm interval
         

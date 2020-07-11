@@ -30,7 +30,7 @@ def main():
         serial_receiver = executor.submit(recv_serial, com, sound)
 
         # start video stream
-        video_stream(com)
+        video_stream(com , sound)
 
         # this block is for stoping process with terminating receive after video_stream()finished
         while True:

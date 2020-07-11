@@ -6,9 +6,10 @@ import numpy as np
 import cv2
 import time, datetime
 
-from constants import KEY_ESC, KEY_SAVE, WINDOW_ORG, WINDOW_DIFF, WINDOW_INVERTDIFF, \
-     WINDOW_MOSAIC, WINDOW_MOSAIC_INVERTDIFF, PICTURE_DIR, JSON_INITIAL_DICT, MIN_FPS
-from utility import byte_to_json
+from constants import KEY_ESC, KEY_SAVE, WINDOW_ORG, WINDOW_DIFF, WINDOW_CANNY, \
+     WINDOW_INVERTDIFF, WINDOW_MOSAIC, WINDOW_MOSAIC_DIFF, WINDOW_MOSAIC_INVERTDIFF, \
+     PICTURE_DIR, JSON_INITIAL_DICT, MIN_FPS, MIDI_IMGAE_CHANNEL_LIST
+from utility import byte_to_json, json_to_byte
 
 
 def mosaic(frame, ratio=0.05):
@@ -16,7 +17,7 @@ def mosaic(frame, ratio=0.05):
                             interpolation=cv2.INTER_NEAREST)
     frame = cv2.resize(imageSmall, frame.shape[:2][::-1],
                         interpolation=cv2.INTER_NEAREST)
-    return frame
+    return frame, imageSmall
 
 def invert_color(frame):
     # invert color
@@ -24,7 +25,7 @@ def invert_color(frame):
     return frame
 
 
-def video_stream(com):
+def video_stream(com, sound):
     item = None
     byte_item = None
     prev_json_item = None
@@ -35,10 +36,14 @@ def video_stream(com):
     color = COLOR
     interval = 10
     
+    np.set_printoptions(threshold=np.inf)
+    
     cv2.namedWindow(WINDOW_ORG, cv2.WINDOW_NORMAL) 
-    cv2.namedWindow(WINDOW_DIFF, cv2.WINDOW_NORMAL) 
+    # cv2.namedWindow(WINDOW_DIFF, cv2.WINDOW_NORMAL)
+    cv2.namedWindow(WINDOW_CANNY, cv2.WINDOW_NORMAL) 
     cv2.namedWindow(WINDOW_INVERTDIFF, cv2.WINDOW_NORMAL) 
-    cv2.namedWindow(WINDOW_MOSAIC, cv2.WINDOW_NORMAL) 
+    cv2.namedWindow(WINDOW_MOSAIC, cv2.WINDOW_NORMAL)
+    # cv2.namedWindow(WINDOW_MOSAIC_DIFF, cv2.WINDOW_NORMAL) 
     cv2.namedWindow(WINDOW_MOSAIC_INVERTDIFF, cv2.WINDOW_NORMAL)
     
     try:
@@ -88,7 +93,7 @@ def video_stream(com):
             print("video_stream(): json_item: %s" % json_item)
                                   
             bpm = int(json_item['bpm']) # purple
-            ratio = 1 / (int(json_item['mrt'])) # white
+            mrt = int(json_item['mrt'])
             
             vl2 = int(json_item['vl2']) #blue
             nt2 = int(json_item['nt2']) #green
@@ -111,7 +116,7 @@ def video_stream(com):
             # convert to gray scale
             gray = cv2.cvtColor(dFrame.astype(np.uint8), cv2.COLOR_RGB2GRAY) 
 
-            # derive outline
+            # derieve outline
             cannyFrame = cv2.Canny(gray, 50, 110) 
 
             ret, thresh = cv2.threshold(gray, 127, 255, 0) 
@@ -146,20 +151,62 @@ def video_stream(com):
             idFrame = invert_color(dFrame)
 
             # convert to mosaic
-            mFrame = mosaic(iFrame, ratio)
-            midFrame = mosaic(idFrame, ratio)
+            ratio = 1 / mrt # white
+            
+            mFrame, mFrameSmall = mosaic(iFrame, ratio)
+            mdFrame, mdFrameSmall = mosaic(dFrame,  ratio)
+            midFrame, midFrameSmall = mosaic(idFrame, ratio)
+            mcannyFrame, mcannyFrameSmall = mosaic(cannyFrame, ratio)
+
+            
+
+            note_rate = 127/midFrameSmall.shape[0]
+            # channel_rate = 16/midFrameSmall.shape[1]
+            channel_rate = len(MIDI_IMGAE_CHANNEL_LIST)/midFrameSmall.shape[1]
             
             
-            # print("----midFrame-----")
-            # print(midFrame)
-            # print("----midFrame-----")
+            print("note_rate: %s" % note_rate)
+            print("channel_rate: %s" % channel_rate)
+
+            
+            midFrameSmallMean = midFrameSmall[:, :, :].mean(axis=2)
+            
+            print("----Frame-----")
+            # print(midFrameSmall)
+            print(midFrameSmallMean)
+            
+            pixel_list = list(zip(*np.where(midFrameSmallMean < 245)))
+            for pixel in pixel_list:
+                # print("y: %s" % pixel[0])
+                # print("x: %s" % pixel[1])
+                # print("y type: %s" % type(pixel[0]))
+                
+                # assign MIDI note number (upper side is higher number), same behavior withgreen note number
+                json_item["nt2"]= int(127 - int(pixel[0]) * note_rate)
+                
+                # assign MIDI channel, same behavior with green switch
+                json_item["ch2"]= MIDI_IMGAE_CHANNEL_LIST[int(int(pixel[1]) * channel_rate)]
+                
+                # flag to turn on without pushing blue switch
+                json_item["img"]= 1
+                
+                byte_item = json_to_byte(json_item)
+                sound.midi_q.put_nowait(byte_item)
+                print("image video_sterma(image to sound): %s" % json_item)
+                
+            # print(type(mcannyFrameSmall))
+            print(mcannyFrameSmall.shape)
+            # print(mcannyFrameSmall.size)            
+            # print(mcannyFrameSmall.dtype)            
+            print("----Frame-----")
 
             # display frame
             cv2.imshow(WINDOW_ORG, iFrame) 
             # cv2.imshow(WINDOW_DIFF, dFrame.astype(np.uint8))
-            cv2.imshow(WINDOW_DIFF, cannyFrame.astype(np.uint8))
+            cv2.imshow(WINDOW_CANNY, cannyFrame.astype(np.uint8))
             cv2.imshow(WINDOW_INVERTDIFF, idFrame.astype(np.uint8)) 
-            cv2.imshow(WINDOW_MOSAIC, mFrame.astype(np.uint8)) 
+            cv2.imshow(WINDOW_MOSAIC, mFrame.astype(np.uint8))
+            # cv2.imshow(WINDOW_MOSAIC_DIFF, mdFrame.astype(np.uint8)) 
             cv2.imshow(WINDOW_MOSAIC_INVERTDIFF, midFrame.astype(np.uint8)) 
 
 
