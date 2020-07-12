@@ -2,8 +2,8 @@ KEY_ESC = 27    # Esc key
 KEY_SAVE = 's'  # Save image key
 KEY_RECEIVER_STOP = 'f'
 # Stop receiver key
-MIN_MIDI_BPM=360  
-MIN_FPS = 30   # minimum interval to process image and sound (30 fps)   
+MIN_MIDI_BPM = 360  
+MIN_FPS = 20   # minimum interval to process image and sound (30 fps)   
 
 WINDOW_ORG = "Original" 
 WINDOW_DIFF = "Diff"
@@ -13,6 +13,8 @@ WINDOW_MOSAIC = "Mosaic"
 WINDOW_MOSAIC_DIFF = "MosaicDIff"
 WINDOW_MOSAIC_INVERTDIFF = "MosaicInvertDIff"
 PICTURE_DIR = "./picture/"
+FRAME_HIGHT = 245
+MID_PX_MEAN_THREASHOLD = 230
 
 SERIAL_STOP = "stop"
 SERIAL_RATE = 115200
@@ -25,3 +27,4 @@ JSON_INITIAL_DICT = {'bpm':30, 'mrt':1, 'vl2':1, 'nt2':1, 'vl1':1, 'nt1':1,
 
 MIDI_SYNTH_PORT_KEY = "FLUID Synth"
 MIDI_IMGAE_CHANNEL_LIST = [2, 9, 12, 15]
+MIDI_HIGEHST_NOTE_NUM = 108 # under 127

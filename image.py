@@ -8,7 +8,9 @@ import time, datetime
 
 from constants import KEY_ESC, KEY_SAVE, WINDOW_ORG, WINDOW_DIFF, WINDOW_CANNY, \
      WINDOW_INVERTDIFF, WINDOW_MOSAIC, WINDOW_MOSAIC_DIFF, WINDOW_MOSAIC_INVERTDIFF, \
-     PICTURE_DIR, JSON_INITIAL_DICT, MIN_FPS, MIDI_IMGAE_CHANNEL_LIST
+     PICTURE_DIR, JSON_INITIAL_DICT, MIN_FPS, MIDI_IMGAE_CHANNEL_LIST, \
+     MIDI_HIGEHST_NOTE_NUM, MID_PX_MEAN_THREASHOLD, FRAME_HIGHT
+     
 from utility import byte_to_json, json_to_byte
 
 
@@ -151,7 +153,7 @@ def video_stream(com, sound):
             idFrame = invert_color(dFrame)
 
             # convert to mosaic
-            ratio = 1 / mrt # white
+            ratio = mrt / FRAME_HIGHT # white
             
             mFrame, mFrameSmall = mosaic(iFrame, ratio)
             mdFrame, mdFrameSmall = mosaic(dFrame,  ratio)
@@ -159,8 +161,8 @@ def video_stream(com, sound):
             mcannyFrame, mcannyFrameSmall = mosaic(cannyFrame, ratio)
 
             
-
-            note_rate = 127/midFrameSmall.shape[0]
+            # define highest midi note number (under 127)
+            note_rate = MIDI_HIGEHST_NOTE_NUM/midFrameSmall.shape[0]
             # channel_rate = 16/midFrameSmall.shape[1]
             channel_rate = len(MIDI_IMGAE_CHANNEL_LIST)/midFrameSmall.shape[1]
             
@@ -175,14 +177,14 @@ def video_stream(com, sound):
             # print(midFrameSmall)
             print(midFrameSmallMean)
             
-            pixel_list = list(zip(*np.where(midFrameSmallMean < 245)))
+            pixel_list = list(zip(*np.where(midFrameSmallMean < MID_PX_MEAN_THREASHOLD)))
             for pixel in pixel_list:
                 # print("y: %s" % pixel[0])
                 # print("x: %s" % pixel[1])
                 # print("y type: %s" % type(pixel[0]))
                 
                 # assign MIDI note number (upper side is higher number), same behavior withgreen note number
-                json_item["nt2"]= int(127 - int(pixel[0]) * note_rate)
+                json_item["nt2"]= int(MIDI_HIGEHST_NOTE_NUM - int(pixel[0]) * note_rate)
                 
                 # assign MIDI channel, same behavior with green switch
                 json_item["ch2"]= MIDI_IMGAE_CHANNEL_LIST[int(int(pixel[1]) * channel_rate)]

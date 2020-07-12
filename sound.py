@@ -161,6 +161,12 @@ def send_midi(sound):
             sound.startTime = time.time() # reset time on hit bpm
         
         if (img == 1):
+            # todo : list of byte data from midi_q at "the same time" will be generated as harmoy?
+            # 1. geterate a list of json
+            # 2. check img==1 and make average or max of ch2, nt2 or vl2
+            # 3. send midi
+            # 4. parge the list data
+            
             sound.tum(channel=ch2, note=nt2, velocity=vl2)
 
         time.sleep(1/(MIN_MIDI_BPM/60)) # wait every minimum bpm interval
