@@ -45,8 +45,35 @@ int delay_time = 100;
 int ch1 = 0;
 int ch2 = 0;
 
+#define NOTE_HEIGHT   16
+#define NOTE_WIDTH    16
+static const unsigned char PROGMEM note_bmp[] =
+{ B00000000, B11000000,
+  B00000000, B11100000,
+  B00000000, B11111100,
+  B00000000, B00000111,
+  B00000000, B10000001,
+  B00000000, B10000000,
+  B00000000, B10000000,
+  B00000000, B10000000,
+  B00000001, B00000000,
+  B00000001, B00000000,
+  B00000001, B00000000,
+  B11111111, B00000000,
+  B11111111, B00000000,
+  B01111111, B00000000,
+  B00111111, B00000000,
+  B00001111, B00000000 };
+
+
 char message[256];
 uint8_t count;
+
+void display_note(uint8_t w, uint8_t h) {
+  display.drawBitmap(
+    w, h,
+    note_bmp, NOTE_WIDTH, NOTE_HEIGHT, 1);
+}
 
 void setup() {
    pinMode(PA4, INPUT);
@@ -67,6 +94,7 @@ void setup() {
    Wire.begin();
    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
 }
+
 
 void loop() {
 //  DynamicJsonDocument doc(256);
@@ -122,6 +150,29 @@ void loop() {
   display.setTextColor(WHITE);
   display.setCursor(0, 0);
 
+  char ch1_d[5] = "";
+  sprintf(ch1_d, "%02d", byte(ch1));
+
+  char ch2_d[5] = "";
+  sprintf(ch2_d, "%02d", byte(ch2));
+
+  display.print("1(RY)");
+  display.print(ch1_d);
+  display.print(" ");
+  if (s2 == 0 ) {
+    display_note(96, 0);
+  }
+  display.println("");
+
+  display.print("2(GB)");
+  display.print(ch2_d);
+  display.print(" ");
+  if (s4 == 0 ) {
+    display_note(96, 16);
+  }
+  display.println("");
+
+
   display.print("P:");
   display.print(p1);
   display.print(",");
@@ -135,21 +186,8 @@ void loop() {
   display.print(",");
   display.println(p6);
   
-  display.print("S:");
-  display.print(s1);
-  display.print(",");
-  display.print(s2);
-  display.print(",");
-  display.print(s3);
-  display.print(",");
-  display.println(s4);
-  
-  display.print("CH:");
-  display.print(ch1);
-  display.print(",");
-  display.println(ch2);
-
   display.display();
-
+ 
+  
   delay(delay_time);
 }
