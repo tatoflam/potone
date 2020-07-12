@@ -45,20 +45,19 @@ int delay_time = 100;
 int ch1 = 0;
 int ch2 = 0;
 
-#define NOTE_HEIGHT   16
+#define NOTE_HEIGHT   15
 #define NOTE_WIDTH    16
 static const unsigned char PROGMEM note_bmp[] =
 { B00000000, B11000000,
-  B00000000, B11100000,
+  B00000000, B11110000,
   B00000000, B11111100,
-  B00000000, B00000111,
-  B00000000, B10000001,
-  B00000000, B10000000,
-  B00000000, B10000000,
-  B00000000, B10000000,
-  B00000001, B00000000,
-  B00000001, B00000000,
-  B00000001, B00000000,
+  B00000000, B11111111,
+  B00000000, B11000011,
+  B00000000, B11000001,
+  B00000000, B11000010,
+  B00000001, B10000100,
+  B00000001, B10000000,
+  B01111001, B10000000,
   B11111111, B00000000,
   B11111111, B00000000,
   B01111111, B00000000,
@@ -101,11 +100,11 @@ void loop() {
   StaticJsonDocument<256> doc;
   
   p1 = map(analogRead(PA4), 0, 1023, 30, 360); // purple: bpm for blue
-  p2 = map(analogRead(PA5), 0, 1023, 2, 120); // white: mosaic rate
+  p2 = map(analogRead(PA5), 0, 1023, 2, 24); // white: mosaic rate
   p3 = map(analogRead(PA6), 0, 928, 1, 127); // blue: velocity (this value is a device specific tuning)
-  p4 = map(analogRead(PA7), 0, 1023, 1, 127); // green: midi note number of blue
+  p4 = map(analogRead(PA7), 0, 1023, 1, 108); // green: midi note number of blue
   p5 = map(analogRead(PB5), 0, 1023, 1, 127); // yellow: velocity
-  p6 = map(analogRead(PB4), 0, 1023, 1, 127); // red: midi note number of yellow
+  p6 = map(analogRead(PB4), 0, 1023, 1, 108); // red: midi note number of yellow
 
   s1 = digitalRead(PC1); // red: increment midi channel number of yellow
   s2 = digitalRead(PC0); // yellow: note on-off
@@ -150,44 +149,63 @@ void loop() {
   display.setTextColor(WHITE);
   display.setCursor(0, 0);
 
-  char ch1_d[5] = "";
-  sprintf(ch1_d, "%02d", byte(ch1));
-
-  char ch2_d[5] = "";
-  sprintf(ch2_d, "%02d", byte(ch2));
-
-  display.print("1(RY)");
-  display.print(ch1_d);
+  // ch1
+  display.print("1 RY ");
+  display.printf("%2d", ch1);
+  display.setTextSize(1);
+  display.print("ch");
+  display.setTextSize(2);
   display.print(" ");
   if (s2 == 0 ) {
-    display_note(96, 0);
+    display_note(100, 0);
   }
   display.println("");
 
-  display.print("2(GB)");
-  display.print(ch2_d);
+  //ch2
+  display.print("2 GB ");
+  display.printf("%2d", ch2);
+  display.setTextSize(1);
+  display.print("ch");
+  display.setTextSize(2);
   display.print(" ");
   if (s4 == 0 ) {
-    display_note(96, 16);
+    display_note(100, 16);
   }
   display.println("");
 
+  // bpm
+  display.printf("%3d", p1);
+  display.setTextSize(1);
+  display.print("bpm");
 
-  display.print("P:");
-  display.print(p1);
-  display.print(",");
-  display.print(p2);
-  display.print(",");
-  display.print(p3);
-  display.print(",");
-  display.print(p4);
-  display.print(",");
-  display.print(p5);
-  display.print(",");
-  display.println(p6);
+  // mosaic rate (# pixel)
+  display.setTextSize(2);
+  display.print(" ");
+  display.printf("%2d", p2);
+  display.setTextSize(1);
+  display.print("px");
+
+  display.setTextSize(2);
+  display.println("");
+
+  // p3
+  display.setTextSize(1);
+  display.print("B vol.");
+  display.printf("%3d", p3);
+
+  // p4
+  display.print(" G # ");
+  display.printf("%3d\n", p4);
+
+  // p5
+  display.print("Y vol.");
+  display.printf("%3d",p5);
+
+  // p6
+  display.print(" R # ");
+  display.printf("%3d", p6);;
   
   display.display();
  
-  
   delay(delay_time);
 }
