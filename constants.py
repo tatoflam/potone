@@ -26,5 +26,5 @@ JSON_INITIAL_DICT = {'bpm':30, 'mrt':1, 'vl2':1, 'nt2':1, 'vl1':1, 'nt1':1,
                   'up1':0, 'dr1':0, 'up2':0, 'dr2':0, 'ch1':0, 'ch2':0 , 'img':0}
 
 MIDI_SYNTH_PORT_KEY = "FLUID Synth"
-MIDI_IMGAE_CHANNEL_LIST = [2, 9, 12, 15]
+MIDI_IMGAE_CHANNEL_LIST = [0, 9, 15] # Fantasia, Room1, Koto
 MIDI_HIGEHST_NOTE_NUM = 108 # under 127
