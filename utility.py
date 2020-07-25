@@ -3,6 +3,12 @@ import sys, traceback
 import json
 from constants import JSON_INITIAL_DICT
 
+seq = 0
+count = 0
+t4 = 0
+t5 = 1
+interval = 2000
+
 def byte_to_json(byte_item):
     
     json_item =  JSON_INITIAL_DICT
@@ -36,3 +42,27 @@ def json_to_byte(json_item):
             print(traceback.format_exc())
 
     return byte_item
+
+
+#def make_mqtt_json(seq, ,count, t1, t2, t3, t4, t5, t6, interval):
+def make_mqtt_json(vl1, nt1, vl2, nt2, bpm):
+    global seq
+    global count
+    global t4
+    global t5
+    
+    seq = seq + 1
+    count = count + 1
+    
+    if (t4 == 0 and t5 == 1):
+        t4 = 1
+        t5 = 0
+    else:
+        t4 = 0
+        t5 = 1
+    
+    mqtt_dict = {'seq':seq, 'count':count, 't1':vl1, 't2':vl2, 't3':nt1,
+                 't4':t4,'t5':t5, 't6':nt2, 'interval':int(60000/bpm)}
+    
+    # return json object
+    return json.dumps(mqtt_dict)

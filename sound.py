@@ -4,7 +4,8 @@ from mido import Message
 
 import time
 import queue
-from utility import byte_to_json
+from utility import byte_to_json, make_mqtt_json
+from mqtt import publish
 
 from constants import MIDI_SYNTH_PORT_KEY, MIN_MIDI_BPM, JSON_INITIAL_DICT
 
@@ -79,7 +80,7 @@ class Sound:
         self.midi_synth_outport.send(msg)
 
 
-def send_midi(sound):
+def send_midi(sound, mqtt_client):
 #def send_midi():
     # sound = Sound()
     byte_item = None
@@ -139,7 +140,10 @@ def send_midi(sound):
             img = 0
             if 'img' in json_item:
                 img = int(json_item['img'])
-                
+            
+            mqtt_interval = 60000/bpm
+
+            
             print("sound.send_midi(): json_item: %s" % json_item)
             
             sound.check_midi_port(MIDI_SYNTH_PORT_KEY)
@@ -154,15 +158,7 @@ def send_midi(sound):
                 if (dr1 == 0):  # tum every fps
                     sound.tum(channel=ch1, note=nt1, velocity=vl1)
                 # sound.startTime = time.time() # reset time
-
-            # wait for each interval 
-            if (elapsedTime >= 1/(bpm/60)):
-                if (dr2 == 0): # tum every interval of bpm
-                    sound.tum(channel=ch2, note=nt2, velocity=vl2)
-
-                # time.sleep(1/MIN_FPS) # wait every minimum f
-                sound.startTime = time.time() # reset time on hit bpm
-            
+                
                 # check note from video stream (json['img']==1)
                 # video stream rate (FPS) is faster than MIDI sequence(BPM)
                 # get average value of note number over FPSs per BPM 
@@ -187,6 +183,18 @@ def send_midi(sound):
                     nt2_avg = int(nt2_sum / nt2_count)
                     # print("soudn: tum: ch2: %s, nt2_avg: %s, vl12: %s" % (ch2, nt2_avg, vl2))
                     sound.tum(channel=ch2, note=nt2_avg, velocity=vl2)
+
+            # wait for each interval 
+            if (elapsedTime >= 1/(bpm/60)):
+                
+                mqtt_json_item = make_mqtt_json(vl1, nt1, vl2, nt2, bpm)
+                publish(mqtt_client, mqtt_json_item)
+                
+                if (dr2 == 0): # tum every interval of bpm
+                    sound.tum(channel=ch2, note=nt2, velocity=vl2)
+
+                # time.sleep(1/MIN_FPS) # wait every minimum f
+                sound.startTime = time.time() # reset time on hit bpm
 
             time.sleep(1/(MIN_MIDI_BPM/60)) # wait every minimum bpm interval
         except:

@@ -9,6 +9,7 @@ from image import video_stream
 from communication import Communication, recv_serial
 from sound import Sound, send_midi
 from utility import byte_to_json
+from mqtt import connect_mqtt, disconnect_mqtt
 
 def main():        
     com = Communication()
@@ -17,9 +18,12 @@ def main():
     try:
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
         
+        # MQTT connect
+        mqtt_client = connect_mqtt()
+        
         # start MIDI as a concurrent executor
         sound.quit_midi = False
-        midi_sender = executor.submit(send_midi, sound)
+        midi_sender = executor.submit(send_midi, sound, mqtt_client)
 
         # init serial communication
         # ser = com.init_serial()
@@ -58,6 +62,7 @@ def main():
         print("main is waiting for stopping threas")
         # do not wait the queue empty as AVR is working asynchronouly
         # serial_q.join()
+        disconnect_mqtt(mqtt_client)
         
         com.quit_recv = True
         sound.quit_midi = True

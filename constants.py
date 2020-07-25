@@ -2,7 +2,7 @@ KEY_ESC = 27    # Esc key
 KEY_SAVE = 's'  # Save image key
 KEY_RECEIVER_STOP = 'f'
 # Stop receiver key
-MIN_MIDI_BPM = 360  
+MIN_MIDI_BPM = 480
 MIN_FPS = 20   # minimum interval to process image and sound (30 fps)   
 
 WINDOW_ORG = "Original" 
@@ -24,6 +24,8 @@ GET_USB_PORT_COMMAND="../bin/checkUSB_linux.sh | awk '/D307RG9Y/{print($1)}'"
 #                  'img':0, 'pup':0, 'pdn':0, 'drm':0}
 JSON_INITIAL_DICT = {'bpm':30, 'mrt':1, 'vl2':1, 'nt2':1, 'vl1':1, 'nt1':1,
                   'up1':0, 'dr1':0, 'up2':0, 'dr2':0, 'ch1':0, 'ch2':0 , 'img':0}
+#MQTT_JSON_INITIAL_DICT = {'seq':1, 'count':1, 't1':0, 't2':1, 't3':0, 't4':0,
+#                          't5':1, 't6':1, 'interval':2000}
 
 MIDI_SYNTH_PORT_KEY = "FLUID Synth"
 MIDI_IMGAE_CHANNEL_LIST = [0, 9, 15] # Fantasia, Room1, Koto
